@@ -1,94 +1,94 @@
 version: '3.8'
 
 services:
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: whatsapp-drive-assistant
+  # Court Data Fetcher Application
+  court-fetcher:
+    build: .
+    container_name: court-data-fetcher
     ports:
-      - "5678:5678"
+      - "5000:5000"
     environment:
-      # n8n Configuration
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin@localhost.com
-      - N8N_BASIC_AUTH_PASSWORD=Admin123
-      - WEBHOOK_URL=http://localhost:5678
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      # Flask Configuration
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-dev-secret-key-change-in-production}
       
       # Database Configuration
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=n8n
-      - DB_POSTGRESDB_USER=n8n
-      - DB_POSTGRESDB_PASSWORD=n8n_password
+      - DATABASE_URL=sqlite:///court_data.db
       
-      # Redis Configuration (for queue management)
-      - QUEUE_BULL_REDIS_HOST=redis
-      - QUEUE_BULL_REDIS_PORT=6379
-      - QUEUE_BULL_REDIS_DB=0
+      # CAPTCHA Solving
+      - TWOCAPTCHA_API_KEY=${TWOCAPTCHA_API_KEY}
       
-      # Security
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-your-32-character-encryption-key}
-      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
+      # Scraping Configuration
+      - REQUEST_TIMEOUT=30
+      - MAX_RETRIES=3
+      - USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
       
-      # Performance
-      - N8N_LOG_LEVEL=info
-      - N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
+      # Court URLs
+      - ECOURTS_BASE_URL=https://services.ecourts.gov.in/ecourtindia_v6/
+      - DELHI_HC_BASE_URL=https://delhihighcourt.nic.in/
       
-      # External Services (from .env file)
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CONFIRMATION_KEYWORD=${CONFIRMATION_KEYWORD:-CONFIRM}
-      - AUDIT_SPREADSHEET_ID=${AUDIT_SPREADSHEET_ID}
+      # PDF Configuration
+      - PDF_STORAGE_PATH=downloads/pdfs/
+      - MAX_PDF_SIZE_MB=50
+      
+      # Rate Limiting
+      - REQUESTS_PER_MINUTE=10
+      - CAPTCHA_RETRY_LIMIT=3
+      
+      # Logging
+      - LOG_LEVEL=INFO
+      - LOG_FILE=logs/court_fetcher.log
     
     volumes:
-      - n8n_data:/home/node/.n8n
-      - ./workflow.json:/tmp/workflow.json:ro
-      - ./scripts:/scripts:ro
-    
-    depends_on:
-      - postgres
-      - redis
+      - ./court_data.db:/app/court_data.db
+      - ./logs:/app/logs
+      - ./downloads:/app/downloads
     
     restart: unless-stopped
     
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
     networks:
-      - n8n-network
+      - court-network
 
+  # PostgreSQL Database (optional, for production)
   postgres:
     image: postgres:15-alpine
-    container_name: n8n-postgres
+    container_name: court-postgres
     environment:
-      - POSTGRES_DB=n8n
-      - POSTGRES_USER=n8n
-      - POSTGRES_PASSWORD=n8n_password
+      - POSTGRES_DB=court_data
+      - POSTGRES_USER=court_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-court_password_change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
-      - n8n-network
+      - court-network
+    profiles:
+      - production
 
+  # Redis (optional, for caching)
   redis:
     image: redis:7-alpine
-    container_name: n8n-redis
+    container_name: court-redis
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     restart: unless-stopped
     networks:
-      - n8n-network
+      - court-network
+    profiles:
+      - production
 
-  # Optional: Nginx reverse proxy for production
+  # Nginx (reverse proxy for production)
   nginx:
     image: nginx:alpine
-    container_name: n8n-nginx
+    container_name: court-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -96,21 +96,19 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - n8n
+      - court-fetcher
     restart: unless-stopped
     networks:
-      - n8n-network
+      - court-network
     profiles:
       - production
 
 volumes:
-  n8n_data:
-    driver: local
   postgres_data:
     driver: local
   redis_data:
     driver: local
 
 networks:
-  n8n-network:
+  court-network:
     driver: bridge 

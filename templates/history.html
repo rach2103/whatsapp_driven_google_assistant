@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Search History - Court Data Fetcher{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-history text-primary me-2"></i>
+                Search History
+            </h2>
+            <a href="{{ url_for('search_form') }}" class="btn btn-primary">
+                <i class="fas fa-search me-2"></i>New Search
+            </a>
+        </div>
+
+        {% if queries.items %}
+        <!-- Search History Table -->
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            All Searches ({{ queries.total }} total)
+                        </h5>
+                    </div>
+                    <div class="col-auto">
+                        <small class="text-muted">
+                            Showing {{ queries.per_page * (queries.page - 1) + 1 }} - 
+                            {{ queries.per_page * (queries.page - 1) + queries.items|length }} 
+                            of {{ queries.total }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Case Details</th>
+                                <th>Court</th>
+                                <th>Status</th>
+                                <th>Search Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for query in queries.items %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <strong class="text-primary">
+                                            {{ query.case_type.title() }} {{ query.case_number }}/{{ query.filing_year }}
+                                        </strong>
+                                        {% if query.error_message %}
+                                        <br>
+                                        <small class="text-danger">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {{ query.error_message[:50] }}{% if query.error_message|length > 50 %}...{% endif %}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">
+                                        {{ query.court_name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if query.search_status == 'success' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Success
+                                        </span>
+                                    {% elif query.search_status == 'failed' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Failed
+                                        </span>
+                                    {% elif query.search_status == 'error' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>Error
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-clock me-1"></i>Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>
+                                        {{ query.timestamp.strftime('%d %b %Y') }}
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ query.timestamp.strftime('%I:%M %p') }}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        {% if query.cases %}
+                                            <a href="{{ url_for('view_case', case_id=query.cases[0].id) }}" 
+                                               class="btn btn-outline-primary" title="View Case Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        {% endif %}
+                                        
+                                        {% if query.search_status in ['failed', 'error'] %}
+                                            <button class="btn btn-outline-warning" 
+                                                    onclick="retrySearch({{ query.id }})" 
+                                                    title="Retry Search">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        {% endif %}
+                                        
+                                        <button class="btn btn-outline-info" 
+                                                onclick="viewDetails({{ query.id }})" 
+                                                title="View Query Details">
+                                            <i class="fas fa-info"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if queries.pages > 1 %}
+        <nav aria-label="Search history pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <!-- Previous Page -->
+                {% if queries.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('search_history', page=queries.prev_num) }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        <i class="fas fa-chevron-left"></i>
+                    </span>
+                </li>
+                {% endif %}
+
+                <!-- Page Numbers -->
+                {% for page_num in queries.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != queries.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('search_history', page=page_num) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">…</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Next Page -->
+                {% if queries.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('search_history', page=queries.next_num) }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        <i class="fas fa-chevron-right"></i>
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <!-- No Search History -->
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-history fa-4x text-muted mb-4"></i>
+                <h4>No Search History</h4>
+                <p class="text-muted mb-4">
+                    You haven't performed any case searches yet. Start searching to see your history here.
+                </p>
+                <a href="{{ url_for('search_form') }}" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>Start Searching
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Query Details Modal -->
+<div class="modal fade" id="queryDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Query Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="queryDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewDetails(queryId) {
+    // Show query details in modal
+    const modal = new bootstrap.Modal(document.getElementById('queryDetailsModal'));
+    const content = document.getElementById('queryDetailsContent');
+    
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading query details...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // In a real implementation, you would fetch query details via API
+    setTimeout(() => {
+        content.innerHTML = `
+            <div class="alert alert-info">
+                <h6>Query Information</h6>
+                <p><strong>Query ID:</strong> ${queryId}</p>
+                <p><strong>Note:</strong> Detailed query information would be displayed here in a full implementation.</p>
+            </div>
+        `;
+    }, 1000);
+}
+
+function retrySearch(queryId) {
+    if (confirm('Are you sure you want to retry this search?')) {
+        // In a real implementation, you would trigger a retry
+        showAlert('Retry functionality would be implemented here.', 'info');
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas fa-info-circle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('main.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

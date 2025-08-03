@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Search Cases - Court Data Fetcher{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-form {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 25px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: var(--dark-text);
+        margin-bottom: 8px;
+    }
+    
+    .search-results {
+        margin-top: 30px;
+    }
+    
+    .result-card {
+        border-left: 4px solid var(--success-color);
+        margin-bottom: 20px;
+    }
+    
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+    }
+    
+    .loading-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        min-width: 300px;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Page Header -->
+        <div class="text-center mb-4">
+            <h2 class="mb-3">
+                <i class="fas fa-search text-primary me-2"></i>
+                Search Court Cases
+            </h2>
+            <p class="text-muted">
+                Enter case details to retrieve information from Indian court records
+            </p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-form">
+            <form id="searchForm" method="POST" action="{{ url_for('api_search') }}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="court" class="form-label">
+                                <i class="fas fa-building me-1"></i>Court
+                            </label>
+                            <select class="form-select" id="court" name="court" required>
+                                <option value="">Select Court</option>
+                            </select>
+                            <div class="form-text">Choose the court where the case was filed</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="case_type" class="form-label">
+                                <i class="fas fa-folder me-1"></i>Case Type
+                            </label>
+                            <select class="form-select" id="case_type" name="case_type" required>
+                                <option value="">Select Case Type</option>
+                            </select>
+                            <div class="form-text">Type of legal case</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="case_number" class="form-label">
+                                <i class="fas fa-hashtag me-1"></i>Case Number
+                            </label>
+                            <input type="text" class="form-control" id="case_number" name="case_number" 
+                                   placeholder="Enter case number" required>
+                            <div class="form-text">Case registration number (without year)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="filing_year" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>Filing Year
+                            </label>
+                            <select class="form-select" id="filing_year" name="filing_year" required>
+                                <option value="">Select Year</option>
+                            </select>
+                            <div class="form-text">Year when the case was filed</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg px-5">
+                        <span class="btn-text">
+                            <i class="fas fa-search me-2"></i>Search Case
+                        </span>
+                        <span class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Searching...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search Results -->
+        <div id="searchResults" class="search-results" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5>Searching Case...</h5>
+        <p class="text-muted mb-0">
+            Please wait while we fetch case information from the court database.
+            This may take up to 30 seconds.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load courts and case types
+    loadCourts();
+    loadCaseTypes();
+    populateYears();
+    
+    // Form submission
+    document.getElementById('searchForm').addEventListener('submit', handleFormSubmit);
+});
+
+async function loadCourts() {
+    try {
+        const response = await fetch('/api/courts');
+        const courts = await response.json();
+        
+        const courtSelect = document.getElementById('court');
+        courtSelect.innerHTML = '<option value="">Select Court</option>';
+        
+        courts.forEach(court => {
+            const option = document.createElement('option');
+            option.value = court.name;
+            option.textContent = court.name;
+            courtSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading courts:', error);
+        showAlert('Error loading court list. Please refresh the page.', 'danger');
+    }
+}
+
+async function loadCaseTypes() {
+    try {
+        const response = await fetch('/api/case-types');
+        const caseTypes = await response.json();
+        
+        const caseTypeSelect = document.getElementById('case_type');
+        caseTypeSelect.innerHTML = '<option value="">Select Case Type</option>';
+        
+        caseTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.id;
+            option.textContent = type.name;
+            caseTypeSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading case types:', error);
+        showAlert('Error loading case types. Please refresh the page.', 'danger');
+    }
+}
+
+function populateYears() {
+    const yearSelect = document.getElementById('filing_year');
+    const currentYear = new Date().getFullYear();
+    
+    yearSelect.innerHTML = '<option value="">Select Year</option>';
+    
+    // Add years from current year back to 1950
+    for (let year = currentYear; year >= 1950; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+    }
+}
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    
+    // Show loading state
+    showLoading(submitButton);
+    document.getElementById('loadingOverlay').style.display = 'block';
+    document.getElementById('searchResults').style.display = 'none';
+    
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(Object.fromEntries(formData))
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            displayResults(result.data);
+            showAlert('Case found successfully!', 'success');
+        } else {
+            showAlert(result.message || 'Case not found', 'warning');
+            document.getElementById('searchResults').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        showAlert('An error occurred while searching. Please try again.', 'danger');
+        document.getElementById('searchResults').style.display = 'none';
+    } finally {
+        hideLoading(submitButton);
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+}
+
+function displayResults(caseData) {
+    const resultsContainer = document.getElementById('searchResults');
+    
+    const html = `
+        <div class="card result-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>Case Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Case Details</h6>
+                        <table class="table table-sm">
+                            ${caseData.cnr_number ? `<tr><td><strong>CNR Number:</strong></td><td>${caseData.cnr_number}</td></tr>` : ''}
+                            ${caseData.case_title ? `<tr><td><strong>Case Title:</strong></td><td>${caseData.case_title}</td></tr>` : ''}
+                            ${caseData.status ? `<tr><td><strong>Status:</strong></td><td><span class="badge bg-info">${caseData.status}</span></td></tr>` : ''}
+                            ${caseData.judge_name ? `<tr><td><strong>Judge:</strong></td><td>${caseData.judge_name}</td></tr>` : ''}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Parties & Dates</h6>
+                        <table class="table table-sm">
+                            ${caseData.petitioner ? `<tr><td><strong>Petitioner:</strong></td><td>${caseData.petitioner}</td></tr>` : ''}
+                            ${caseData.respondent ? `<tr><td><strong>Respondent:</strong></td><td>${caseData.respondent}</td></tr>` : ''}
+                            ${caseData.filing_date ? `<tr><td><strong>Filing Date:</strong></td><td>${formatDate(caseData.filing_date)}</td></tr>` : ''}
+                            ${caseData.next_hearing ? `<tr><td><strong>Next Hearing:</strong></td><td>${formatDate(caseData.next_hearing)}</td></tr>` : ''}
+                        </table>
+                    </div>
+                </div>
+                
+                ${caseData.orders && caseData.orders.length > 0 ? `
+                <div class="mt-4">
+                    <h6 class="text-primary">
+                        <i class="fas fa-file-pdf me-1"></i>Orders & Judgments
+                    </h6>
+                    <div class="row">
+                        ${caseData.orders.map(order => `
+                            <div class="col-md-6 mb-2">
+                                <div class="card">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="order-badge">${order.type || 'Order'}</span>
+                                                ${order.date ? `<small class="d-block text-muted mt-1">${formatDate(order.date)}</small>` : ''}
+                                            </div>
+                                            ${order.pdf_url ? `
+                                                <a href="${order.pdf_url}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-download me-1"></i>PDF
+                                                </a>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+    
+    // Scroll to results
+    resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the main container
+    const container = document.querySelector('main.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

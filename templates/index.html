@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Court Data Fetcher{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="search-hero text-center">
+    <h1 class="display-4 mb-3">
+        <i class="fas fa-gavel text-primary me-3"></i>
+        Court Data Fetcher
+    </h1>
+    <p class="lead mb-4">
+        Search and retrieve case information from Indian courts with ease. 
+        Access case details, party information, hearing dates, and downloadable court orders.
+    </p>
+    <a href="{{ url_for('search_form') }}" class="btn btn-primary btn-lg">
+        <i class="fas fa-search me-2"></i>Start Searching Cases
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-search fa-2x mb-3"></i>
+                <div class="stats-number">{{ stats.total_queries or 0 }}</div>
+                <h6 class="card-title">Total Searches</h6>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-3"></i>
+                <div class="stats-number">{{ stats.successful_queries or 0 }}</div>
+                <h6 class="card-title">Successful</h6>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-percentage fa-2x mb-3"></i>
+                <div class="stats-number">{{ stats.success_rate or 0 }}%</div>
+                <h6 class="card-title">Success Rate</h6>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-day fa-2x mb-3"></i>
+                <div class="stats-number">{{ moment().format('DD') }}</div>
+                <h6 class="card-title">Today</h6>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row mb-5">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Secure & Reliable</h5>
+                <p class="card-text">
+                    All searches are logged securely and data is handled with utmost care. 
+                    No sensitive information is stored permanently.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-bolt fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Fast Processing</h5>
+                <p class="card-text">
+                    Automated CAPTCHA solving and optimized scraping ensures 
+                    quick results for your case searches.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-download fa-3x text-success mb-3"></i>
+                <h5 class="card-title">PDF Downloads</h5>
+                <p class="card-text">
+                    Direct access to court orders and judgments in PDF format. 
+                    Download and save important documents locally.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Searches -->
+{% if stats.recent_queries %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Searches
+                </h5>
+                <a href="{{ url_for('search_history') }}" class="btn btn-outline-primary btn-sm">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Case Details</th>
+                                <th>Court</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for query in stats.recent_queries %}
+                            <tr>
+                                <td>
+                                    <strong>{{ query.case_type }}</strong> {{ query.case_number }}/{{ query.filing_year }}
+                                </td>
+                                <td>{{ query.court_name }}</td>
+                                <td>
+                                    {% if query.search_status == 'success' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Success
+                                        </span>
+                                    {% elif query.search_status == 'failed' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Failed
+                                        </span>
+                                    {% elif query.search_status == 'error' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>Error
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-clock me-1"></i>Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ query.timestamp.strftime('%d %b %Y, %I:%M %p') if query.timestamp else 'N/A' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if query.cases %}
+                                        <a href="{{ url_for('view_case', case_id=query.cases[0].id) }}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                                            <i class="fas fa-ban me-1"></i>No Data
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- No Recent Searches -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-search fa-4x text-muted mb-4"></i>
+                <h4>No Searches Yet</h4>
+                <p class="text-muted mb-4">
+                    Start by searching for a case to see your recent searches here.
+                </p>
+                <a href="{{ url_for('search_form') }}" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>Search Your First Case
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- How It Works Section -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>How It Works
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="mb-3">
+                            <i class="fas fa-edit fa-2x text-primary"></i>
+                        </div>
+                        <h6>1. Enter Details</h6>
+                        <p class="small text-muted">
+                            Select court, case type, number, and filing year
+                        </p>
+                    </div>
+                    
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="mb-3">
+                            <i class="fas fa-cog fa-2x text-info"></i>
+                        </div>
+                        <h6>2. Auto Processing</h6>
+                        <p class="small text-muted">
+                            System automatically handles CAPTCHA and searches
+                        </p>
+                    </div>
+                    
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="mb-3">
+                            <i class="fas fa-eye fa-2x text-success"></i>
+                        </div>
+                        <h6>3. View Results</h6>
+                        <p class="small text-muted">
+                            Get case details, parties, dates, and status
+                        </p>
+                    </div>
+                    
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="mb-3">
+                            <i class="fas fa-download fa-2x text-warning"></i>
+                        </div>
+                        <h6>4. Download PDFs</h6>
+                        <p class="small text-muted">
+                            Access and download court orders and judgments
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

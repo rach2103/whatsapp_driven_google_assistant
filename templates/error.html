@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Error {{ error_code }} - Court Data Fetcher{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <!-- Error Icon -->
+                {% if error_code == 404 %}
+                <i class="fas fa-search fa-4x text-warning mb-4"></i>
+                {% elif error_code == 500 %}
+                <i class="fas fa-exclamation-triangle fa-4x text-danger mb-4"></i>
+                {% else %}
+                <i class="fas fa-exclamation-circle fa-4x text-secondary mb-4"></i>
+                {% endif %}
+                
+                <!-- Error Title -->
+                <h1 class="display-4 mb-3">{{ error_code }}</h1>
+                
+                <!-- Error Message -->
+                {% if error_code == 404 %}
+                <h4 class="mb-3">Page Not Found</h4>
+                <p class="text-muted mb-4">
+                    The page you're looking for doesn't exist or has been moved.
+                </p>
+                {% elif error_code == 500 %}
+                <h4 class="mb-3">Internal Server Error</h4>
+                <p class="text-muted mb-4">
+                    Something went wrong on our end. We're working to fix it.
+                </p>
+                {% else %}
+                <h4 class="mb-3">{{ error_message or 'An Error Occurred' }}</h4>
+                <p class="text-muted mb-4">
+                    We encountered an unexpected problem. Please try again.
+                </p>
+                {% endif %}
+                
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-home me-2"></i>Go Home
+                    </a>
+                    
+                    {% if error_code == 404 %}
+                    <a href="{{ url_for('search_form') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-2"></i>Search Cases
+                    </a>
+                    {% else %}
+                    <button onclick="window.location.reload()" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-2"></i>Try Again
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Additional Help -->
+                <div class="mt-4">
+                    <small class="text-muted">
+                        If the problem persists, please contact support.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Helpful Links -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>Need Help?
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('search_form') }}" class="text-decoration-none">
+                            <i class="fas fa-search text-primary me-2"></i>Search Cases
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <a href="{{ url_for('search_history') }}" class="text-decoration-none">
+                            <i class="fas fa-history text-primary me-2"></i>View History
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
