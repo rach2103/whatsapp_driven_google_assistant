@@ -1,0 +1,74 @@
+{
+  "name": "WhatsApp Google Drive Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "twilio-whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-twilio",
+      "name": "Twilio Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "twilio-whatsapp"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse incoming WhatsApp message\nconst body = $input.all()[0].json;\nconst message = body.Body || 'HELP';\nconst from = body.From || '+1234567890';\nconst timestamp = new Date().toISOString();\n\n// Extract command and parameters\nconst parts = message.trim().split(' ');\nconst command = parts[0].toUpperCase();\nconst params = parts.slice(1);\n\n// Check for confirmation keyword for destructive operations\nconst hasConfirmation = params.includes('CONFIRM');\nconst filteredParams = params.filter(p => p !== 'CONFIRM');\n\n// Validate command\nconst validCommands = ['LIST', 'DELETE', 'MOVE', 'SUMMARY', 'HELP'];\nif (!validCommands.includes(command)) {\n  return {\n    json: {\n      error: true,\n      message: `❌ Invalid command. Available commands: ${validCommands.join(', ')}`,\n      from: from,\n      timestamp: timestamp,\n      originalMessage: message\n    }\n  };\n}\n\n// Generate response based on command\nlet responseMessage = '';\nlet action = 'UNKNOWN';\nlet status = 'SUCCESS';\n\nswitch (command) {\n  case 'HELP':\n    responseMessage = `📱 *WhatsApp Google Drive Assistant*\\n\\n` +\n      `*Available Commands:*\\n` +\n      `• LIST /path - List files in folder\\n` +\n      `• DELETE /path/file - Delete file (add CONFIRM)\\n` +\n      `• MOVE /source /destination - Move file\\n` +\n      `• SUMMARY /path - AI summary of documents\\n` +\n      `• HELP - Show this help\\n\\n` +\n      `*Examples:*\\n` +\n      `• LIST /ProjectX\\n` +\n      `• DELETE /ProjectX/report.pdf CONFIRM\\n` +\n      `• MOVE /ProjectX/report.pdf /Archive\\n` +\n      `• SUMMARY /ProjectX`;\n    action = 'HELP';\n    break;\n    \n  case 'LIST':\n    const listPath = filteredParams[0] || '/root';\n    responseMessage = `📋 *LIST Command*\\n\\nPath: ${listPath}\\n\\nThis feature requires Google Drive integration.\\n\\nTo enable:\\n1. Add Google Drive OAuth2 credentials\\n2. Configure the workflow nodes`;\n    action = 'LIST';\n    break;\n    \n  case 'DELETE':\n    const deletePath = filteredParams[0];\n    if (!deletePath) {\n      responseMessage = '❌ DELETE command requires a file path. Example: DELETE /ProjectX/report.pdf';\n      status = 'ERROR';\n    } else if (!hasConfirmation) {\n      responseMessage = `⚠️ *Safety Check Required*\\n\\nTo delete *${deletePath}*, add CONFIRM to your command:\\n\\nDELETE ${deletePath} CONFIRM\\n\\nThis prevents accidental deletions.`;\n      status = 'WARNING';\n    } else {\n      responseMessage = `🗑️ *DELETE Command*\\n\\nFile: ${deletePath}\\n\\nThis feature requires Google Drive integration.\\n\\nTo enable:\\n1. Add Google Drive OAuth2 credentials\\n2. Configure the workflow nodes`;\n      action = 'DELETE';\n    }\n    break;\n    \n  case 'MOVE':\n    const sourcePath = filteredParams[0];\n    const destPath = filteredParams[1];\n    if (!sourcePath || !destPath) {\n      responseMessage = '❌ MOVE command requires source and destination. Example: MOVE /ProjectX/report.pdf /Archive';\n      status = 'ERROR';\n    } else {\n      responseMessage = `📁 *MOVE Command*\\n\\nFrom: ${sourcePath}\\nTo: ${destPath}\\n\\nThis feature requires Google Drive integration.\\n\\nTo enable:\\n1. Add Google Drive OAuth2 credentials\\n2. Configure the workflow nodes`;\n      action = 'MOVE';\n    }\n    break;\n    \n  case 'SUMMARY':\n    const summaryPath = filteredParams[0] || '/root';\n    responseMessage = `🤖 *SUMMARY Command*\\n\\nPath: ${summaryPath}\\n\\nThis feature requires OpenAI integration.\\n\\nTo enable:\\n1. Add OpenAI API credentials\\n2. Configure the workflow nodes`;\n    action = 'SUMMARY';\n    break;\n}\n\nreturn {\n  json: {\n    message: responseMessage,\n    from: from,\n    timestamp: timestamp,\n    command: command,\n    params: filteredParams,\n    hasConfirmation: hasConfirmation,\n    action: action,\n    status: status,\n    originalMessage: message\n  }\n};"
+      },
+      "id": "parse-command",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Message processed successfully' } }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Twilio Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+} 
