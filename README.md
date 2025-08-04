@@ -176,6 +176,9 @@ Monitor the workflow through:
 3. Make your changes
 4. Submit a pull request
 
+## Video link
+https://www.loom.com/share/964cc1b283a343f4b4d175c45fd2fbb2?sid=29a19144-e93c-4fce-9b8b-1f40f1bab8ca
+
 ## 📄 License
 
 MIT License - see LICENSE file for details
@@ -191,4 +194,5 @@ For issues and questions:
 
 - **v1.0.0**: Initial release with basic operations
 - **v1.1.0**: Added AI summarization
+
 - **v1.2.0**: Enhanced security and audit logging 
